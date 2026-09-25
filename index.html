@@ -203,7 +203,7 @@
 
   <header>
     <h1>Co-op stock list</h1>
-    <p class="updated">Last updated: <strong>25 September 2026, 12:47</strong></p>
+    <p class="updated">Last updated: <strong>25 September 2026, 15:20</strong></p>
   </header>
 
   <div class="controls">
@@ -436,5 +436,21 @@
   render();
 })();
 </script>
+
+<!-- Visit counting (GoatCounter, added 2026-09-25). No cookies, no personal
+     data, aggregate figures only, so no consent notice is needed; the dashboard
+     is at https://beaacoop.goatcounter.com. This is the page's ONLY external
+     request -- everything else is inlined -- and it is deliberately last, async
+     and non-blocking: if gc.zgo.at is unreachable or blocked, nothing above is
+     affected and the page still works exactly as before.
+
+     The src is an explicit https:// rather than the protocol-relative
+     //gc.zgo.at/count.js of GoatCounter's own snippet. A copy of this page is
+     kept on disk (DATA/coop_stock.html) and can be sent as a file, where "//"
+     resolves against file:// and fails. count.js also refuses to count file://
+     and localhost visits on its own, so a copy opened from disk never shows up
+     in the figures either way. -->
+<script data-goatcounter="https://beaacoop.goatcounter.com/count"
+        async src="https://gc.zgo.at/count.js"></script>
 </body>
 </html>
