@@ -15,8 +15,16 @@
     --accent:    #2f6d4f;
     --low-bg:    #fdf1dc;
     --low-ink:   #8a5a00;
+    /* Two presentations of one status (2026-10-15). The data says "out" for
+       anything with nothing on the shelf; the page splits that in two by
+       whether a delivery date is known. On its way -> "In transit", grey:
+       news, not a problem. Nothing on order -> "Out of stock", red: the
+       member needs to know not to wait for it. Both withhold the price, in
+       build_client_stock.R, which still keys off the single "out" status. */
     --out-bg:    #fbe4e4;
     --out-ink:   #a12a2a;
+    --transit-bg:  #e8eaec;
+    --transit-ink: #4a5258;
     --ok-bg:     #e6f2ea;
     --ok-ink:    #2f6d4f;
     --new-bg:    #e4edfa;
@@ -35,6 +43,8 @@
       --low-ink:  #f0c165;
       --out-bg:   #3d1c1c;
       --out-ink:  #f19a9a;
+      --transit-bg:  #32373b;
+      --transit-ink: #bcc3c9;
       --ok-bg:    #1e2f26;
       --ok-ink:   #6fbf90;
       --new-bg:   #1b2a3f;
@@ -162,7 +172,8 @@
     white-space: nowrap;
   }
   .badge.low { background: var(--low-bg); color: var(--low-ink); }
-  .badge.out { background: var(--out-bg); color: var(--out-ink); }
+  .badge.out     { background: var(--out-bg);     color: var(--out-ink);     }
+  .badge.transit { background: var(--transit-bg); color: var(--transit-ink); }
   .badge.ok  { background: var(--ok-bg);  color: var(--ok-ink);  }
   .badge.new { background: var(--new-bg); color: var(--new-ink); }
 
@@ -203,7 +214,7 @@
 
   <header>
     <h1>Co-op stock list</h1>
-    <p class="updated">Last updated: <strong>15 October 2026, 17:50</strong></p>
+    <p class="updated">Last updated: <strong>15 October 2026, 18:01</strong></p>
   </header>
 
   <div class="controls">
@@ -215,6 +226,7 @@
       <option value="all">All products</option>
       <option value="instock">In stock only</option>
       <option value="low">Running low</option>
+      <option value="transit">In transit</option>
       <option value="out">Out of stock</option>
       <option value="new">New — arriving soon</option>
     </select>
@@ -260,12 +272,24 @@
 
   var DATA = JSON.parse(document.getElementById("stock-data").textContent);
 
-  var LABEL = { ok: "In stock", low: "Running low",
-                out: "Out of stock", new: "New" };
-  // Sort order for the Availability column: most urgent first. "New" sits
-  // below the two shortage states -- it is news, not a problem -- but above
-  // the products that simply are in stock.
-  var RANK  = { out: 0, low: 1, new: 2, ok: 3 };
+  var LABEL = { ok: "In stock", low: "Running low", out: "Out of stock",
+                transit: "In transit", new: "New" };
+  // Sort order for the Availability column: most urgent first. "Out of stock"
+  // outranks "In transit" -- both are empty shelves, but one of them is coming
+  // back on a known date and the other is not. "New" sits below the shortage
+  // states (it is news, not a problem) but above what is simply in stock.
+  var RANK  = { out: 0, transit: 1, low: 2, new: 3, ok: 4 };
+
+  // The page's view of a row's availability, which is NOT the same thing as
+  // the status in the data: "out" means nothing on the shelf, and the page
+  // splits that by whether a delivery date is known. Everything that reads a
+  // status for display, sorting or filtering goes through here, so the three
+  // can never disagree about a row.
+  function stateOf(r) {
+    if (r.status !== "out") return r.status;
+    var due = (r.expected || "").trim();
+    return (due && due !== "Not available") ? "transit" : "out";
+  }
 
   var qEl      = document.getElementById("q");
   var typeEl   = document.getElementById("type");
@@ -339,7 +363,7 @@
       }
       x = a.price; y = b.price;
     } else if (sortKey === "status") {
-      x = RANK[a.status]; y = RANK[b.status];
+      x = RANK[stateOf(a)]; y = RANK[stateOf(b)];
     } else {
       return sortDir * a[sortKey].localeCompare(b[sortKey], undefined,
                                                 { sensitivity: "base" });
@@ -363,7 +387,8 @@
       // filter.
       if (status === "instock") return r.status === "ok" || r.status === "low";
       if (status === "low")     return r.status === "low";
-      if (status === "out")     return r.status === "out";
+      if (status === "transit") return stateOf(r) === "transit";
+      if (status === "out")     return stateOf(r) === "out";
       if (status === "new")     return r.status === "new";
       return true;
     }).sort(compare);
@@ -374,8 +399,8 @@
         '<td class="col-type"><span class="group">' + esc(r.type) + "</span></td>" +
         '<td class="col-category"><span class="group">' + esc(r.category) + "</span></td>" +
         '<td class="col-price">' + price(r.price) + "</td>" +
-        '<td class="col-status"><span class="badge ' + r.status + '">' +
-          LABEL[r.status] + "</span></td>" +
+        '<td class="col-status"><span class="badge ' + stateOf(r) + '">' +
+          LABEL[stateOf(r)] + "</span></td>" +
         '<td class="col-expected"><span class="group">' + esc(r.expected) + "</span></td>" +
       "</tr>";
     }).join("");
